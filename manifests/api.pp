@@ -28,6 +28,10 @@
 #  * auth_type - Type is authorization being used. Optional. Defaults to 'keystone'
 #  * auth_host - Host running auth service. Optional. Defaults to '127.0.0.1'.
 #  * auth_port - Port to use for auth service on auth_host. Optional. Defaults to '35357'.
+#  * auth_admin_prefix - (optional) path part of the auth url.
+#    This allow admin auth URIs like http://auth_host:35357/keystone/admin.
+#    (where '/keystone/admin' is auth_admin_prefix)
+#    Defaults to false for empty. If defined, should be a string with a leading '/' and no trailing '/'.
 #  * auth_protocol - Protocol to use for auth. Optional. Defaults to 'http'.
 #  * keystone_tenant - tenant to authenticate to. Optioal. Defaults to admin.
 #  * keystone_user User to authenticate as with keystone Optional. Defaults to admin.
@@ -37,8 +41,8 @@
 #
 class glance::api(
   $keystone_password,
-  $verbose           = 'False',
-  $debug             = 'False',
+  $verbose           = false,
+  $debug             = false,
   $bind_host         = '0.0.0.0',
   $bind_port         = '9292',
   $backlog           = '4096',
@@ -49,7 +53,9 @@ class glance::api(
   $auth_type         = 'keystone',
   $auth_host         = '127.0.0.1',
   $auth_port         = '35357',
+  $auth_admin_prefix = false,
   $auth_protocol     = 'http',
+  $pipeline          = 'keystone+cachemanagement',
   $keystone_tenant   = 'admin',
   $keystone_user     = 'admin',
   $enabled           = true,
@@ -60,7 +66,7 @@ class glance::api(
   # used to configure concat
   require 'keystone::python'
 
-  validate_re($sql_connection, '(sqlite|mysql|posgres):\/\/(\S+:\S+@\S+\/\S+)?')
+  validate_re($sql_connection, '(sqlite|mysql|postgresql):\/\/(\S+:\S+@\S+\/\S+)?')
 
   Package['glance'] -> Glance_api_config<||>
   Package['glance'] -> Glance_cache_config<||>
@@ -130,22 +136,44 @@ class glance::api(
   glance_api_config {
     'keystone_authtoken/auth_host':         value => $auth_host;
     'keystone_authtoken/auth_port':         value => $auth_port;
-    'keystone_authtoken/protocol':          value => $protocol;
+    'keystone_authtoken/auth_protocol':     value => $auth_protocol;
+  }
+
+  if $auth_admin_prefix {
+    validate_re($auth_admin_prefix, '^(/.+[^/])?$')
+    glance_api_config {
+      'keystone_authtoken/auth_admin_prefix': value => $auth_admin_prefix;
+    }
+  } else {
+    glance_api_config {
+      'keystone_authtoken/auth_admin_prefix': ensure => absent;
+    }
+  }
+
+  # Set the pipeline, it is allowed to be blank
+  if $pipeline != '' {
+    validate_re($pipeline, '^(\w+([+]\w+)*)*$')
+    glance_api_config {
+      'paste_deploy/flavor':
+        value  => $pipeline,
+        ensure => present
+    }
+  } else {
+    glance_api_config { 'paste_deploy/flavor': ensure => absent }
   }
 
   # keystone config
   if $auth_type == 'keystone' {
     glance_api_config {
-      'paste_deploy/flavor':                  value => 'keystone+cachemanagement';
       'keystone_authtoken/admin_tenant_name': value => $keystone_tenant;
-      'keystone_authtoken/admin_user':        value => $keystone_user;
-      'keystone_authtoken/admin_password':    value => $keystone_password;
+      'keystone_authtoken/admin_user'       : value => $keystone_user;
+      'keystone_authtoken/admin_password'   : value => $keystone_password;
     }
     glance_cache_config {
-      'DEFAULT/auth_url':          value => $auth_url;
+      'DEFAULT/auth_url'         : value => $auth_url;
       'DEFAULT/admin_tenant_name': value => $keystone_tenant;
-      'DEFAULT/admin_user':        value => $keystone_user;
-      'DEFAULT/admin_password':    value => $eystone_password;
+      'DEFAULT/admin_user'       : value => $keystone_user;
+      'DEFAULT/admin_password'   : value => $eystone_password;
     }
   }
 
