@@ -50,13 +50,25 @@
 #    (optional) Protocol to communicate with the admin authentication endpoint.
 #    Defaults to 'http'. Should be 'http' or 'https'.
 #
+#  [*auth_uri*]
+#    (optional) Complete public Identity API endpoint.
+#
 #  [*keystone_tenant*]
 #    (optional) administrative tenant name to connect to keystone.
-#    Defaults to 'admin'.
+#    Defaults to 'services'.
 #
 #  [*keystone_user*]
 #    (optional) administrative user name to connect to keystone.
-#    Defaults to 'admin'.
+#    Defaults to 'glance'.
+#
+#  [*use_syslog*]
+#    (optional) Use syslog for logging.
+#    Defaults to false.
+#
+#  [*log_facility*]
+#    (optional) Syslog facility to receive log lines.
+#    Defaults to LOG_USER.
+#
 #
 #  [*enabled*]
 #    (optional) Should the service be enabled. Defaults to true.
@@ -74,10 +86,13 @@ class glance::registry(
   $auth_host         = '127.0.0.1',
   $auth_port         = '35357',
   $auth_admin_prefix = false,
+  $auth_uri          = false,
   $auth_protocol     = 'http',
-  $keystone_tenant   = 'admin',
-  $keystone_user     = 'admin',
+  $keystone_tenant   = 'services',
+  $keystone_user     = 'glance',
   $pipeline          = 'keystone',
+  $use_syslog        = false,
+  $log_facility      = 'LOG_USER',
   $enabled           = true
 ) inherits glance {
 
@@ -120,6 +135,12 @@ class glance::registry(
     'DEFAULT/sql_idle_timeout': value => $sql_idle_timeout;
   }
 
+  if $auth_uri {
+    glance_registry_config { 'keystone_authtoken/auth_uri': value => $auth_uri; }
+  } else {
+    glance_registry_config { 'keystone_authtoken/auth_uri': value => "${auth_protocol}://${auth_host}:5000/"; }
+  }
+
   # auth config
   glance_registry_config {
     'keystone_authtoken/auth_host':     value => $auth_host;
@@ -156,6 +177,18 @@ class glance::registry(
       'keystone_authtoken/admin_tenant_name': value => $keystone_tenant;
       'keystone_authtoken/admin_user'       : value => $keystone_user;
       'keystone_authtoken/admin_password'   : value => $keystone_password;
+    }
+  }
+
+  # Syslog
+  if $use_syslog {
+    glance_registry_config {
+      'DEFAULT/use_syslog':           value => true;
+      'DEFAULT/syslog_log_facility':  value => $log_facility;
+    }
+  } else {
+    glance_registry_config {
+      'DEFAULT/use_syslog': value => false;
     }
   }
 

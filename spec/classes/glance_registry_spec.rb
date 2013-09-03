@@ -21,8 +21,9 @@ describe 'glance::registry' do
       :auth_host         => '127.0.0.1',
       :auth_port         => '35357',
       :auth_protocol     => 'http',
-      :keystone_tenant   => 'admin',
-      :keystone_user     => 'admin',
+      :auth_uri          => 'http://127.0.0.1:5000/',
+      :keystone_tenant   => 'services',
+      :keystone_user     => 'glance',
       :keystone_password => 'ChangeMe',
     }
   end
@@ -42,6 +43,7 @@ describe 'glance::registry' do
       :auth_host         => '127.0.0.1',
       :auth_port         => '35357',
       :auth_protocol     => 'http',
+      :auth_uri          => 'http://127.0.0.1:5000/',
       :keystone_tenant   => 'admin',
       :keystone_user     => 'admin',
       :keystone_password => 'ChangeMe',
@@ -185,4 +187,37 @@ describe 'glance::registry' do
         raise_error(Puppet::Error, /validate_re\(\): "#{auth_admin_prefix}" does not match/) }
     end
   end
+
+  describe 'with syslog disabled by default' do
+    let :params do
+      default_params
+    end
+
+    it { should contain_glance_registry_config('DEFAULT/use_syslog').with_value(false) }
+    it { should_not contain_glance_registry_config('DEFAULT/syslog_log_facility') }
+  end
+
+  describe 'with syslog enabled' do
+    let :params do
+      default_params.merge({
+        :use_syslog   => 'true',
+      })
+    end
+
+    it { should contain_glance_registry_config('DEFAULT/use_syslog').with_value(true) }
+    it { should contain_glance_registry_config('DEFAULT/syslog_log_facility').with_value('LOG_USER') }
+  end
+
+  describe 'with syslog enabled and custom settings' do
+    let :params do
+      default_params.merge({
+        :use_syslog   => 'true',
+        :log_facility => 'LOG_LOCAL0'
+     })
+    end
+
+    it { should contain_glance_registry_config('DEFAULT/use_syslog').with_value(true) }
+    it { should contain_glance_registry_config('DEFAULT/syslog_log_facility').with_value('LOG_LOCAL0') }
+  end
+
 end

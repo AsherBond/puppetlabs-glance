@@ -25,8 +25,9 @@ describe 'glance::api' do
       :auth_host         => '127.0.0.1',
       :auth_port         => '35357',
       :auth_protocol     => 'http',
-      :keystone_tenant   => 'admin',
-      :keystone_user     => 'admin',
+      :auth_uri          => 'http://127.0.0.1:5000/',
+      :keystone_tenant   => 'services',
+      :keystone_user     => 'glance',
       :keystone_password => 'ChangeMe',
       :sql_idle_timeout  => '3600',
       :sql_connection    => 'sqlite:///var/lib/glance/glance.sqlite'
@@ -49,6 +50,7 @@ describe 'glance::api' do
       :auth_host         => '127.0.0.2',
       :auth_port         => '35358',
       :auth_protocol     => 'https',
+      :auth_uri          => 'https://127.0.0.2:5000/v2.0/',
       :keystone_tenant   => 'admin2',
       :keystone_user     => 'admin2',
       :keystone_password => 'ChangeMe2',
@@ -203,6 +205,38 @@ describe 'glance::api' do
       it { expect { should contain_glance_api_config('filter:authtoken/auth_admin_prefix') }.to\
         raise_error(Puppet::Error, /validate_re\(\): "#{auth_admin_prefix}" does not match/) }
     end
+  end
+
+  describe 'with syslog disabled by default' do
+    let :params do
+      default_params
+    end
+
+    it { should contain_glance_api_config('DEFAULT/use_syslog').with_value(false) }
+    it { should_not contain_glance_api_config('DEFAULT/syslog_log_facility') }
+  end
+
+  describe 'with syslog enabled' do
+    let :params do
+      default_params.merge({
+        :use_syslog   => 'true',
+      })
+    end
+
+    it { should contain_glance_api_config('DEFAULT/use_syslog').with_value(true) }
+    it { should contain_glance_api_config('DEFAULT/syslog_log_facility').with_value('LOG_USER') }
+  end
+
+  describe 'with syslog enabled and custom settings' do
+    let :params do
+      default_params.merge({
+        :use_syslog   => 'true',
+        :log_facility => 'LOG_LOCAL0'
+     })
+    end
+
+    it { should contain_glance_api_config('DEFAULT/use_syslog').with_value(true) }
+    it { should contain_glance_api_config('DEFAULT/syslog_log_facility').with_value('LOG_LOCAL0') }
   end
 
 end

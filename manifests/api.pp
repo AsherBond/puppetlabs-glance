@@ -33,11 +33,14 @@
 #    (where '/keystone/admin' is auth_admin_prefix)
 #    Defaults to false for empty. If defined, should be a string with a leading '/' and no trailing '/'.
 #  * auth_protocol - Protocol to use for auth. Optional. Defaults to 'http'.
-#  * keystone_tenant - tenant to authenticate to. Optioal. Defaults to admin.
-#  * keystone_user User to authenticate as with keystone Optional. Defaults to admin.
+#  * auth_uri - Complete public Identity API endpoint.
+#  * keystone_tenant - tenant to authenticate to. Optioal. Defaults to services.
+#  * keystone_user User to authenticate as with keystone Optional. Defaults to glance.
 #  * enabled  Whether to enable services. Optional. Defaults to true.
 #  * sql_idle_timeout
 #  * sql_connection db conection.
+#  * use_syslog - Use syslog for logging.
+#  * log_facility - Syslog facility to receive log lines.
 #
 class glance::api(
   $keystone_password,
@@ -52,15 +55,19 @@ class glance::api(
   $registry_port     = '9191',
   $auth_type         = 'keystone',
   $auth_host         = '127.0.0.1',
+  $auth_url          = 'http://localhost:5000/v2.0',
   $auth_port         = '35357',
+  $auth_uri          = false,
   $auth_admin_prefix = false,
   $auth_protocol     = 'http',
   $pipeline          = 'keystone+cachemanagement',
-  $keystone_tenant   = 'admin',
-  $keystone_user     = 'admin',
+  $keystone_tenant   = 'services',
+  $keystone_user     = 'glance',
   $enabled           = true,
   $sql_idle_timeout  = '3600',
-  $sql_connection    = 'sqlite:///var/lib/glance/glance.sqlite'
+  $sql_connection    = 'sqlite:///var/lib/glance/glance.sqlite',
+  $use_syslog        = false,
+  $log_facility      = 'LOG_USER',
 ) inherits glance {
 
   require keystone::python
@@ -132,6 +139,12 @@ class glance::api(
     'DEFAULT/sql_idle_timeout': value => $sql_idle_timeout;
   }
 
+  if $auth_uri {
+    glance_api_config { 'keystone_authtoken/auth_uri': value => $auth_uri; }
+  } else {
+    glance_api_config { 'keystone_authtoken/auth_uri': value => "${auth_protocol}://${auth_host}:5000/"; }
+  }
+
   # auth config
   glance_api_config {
     'keystone_authtoken/auth_host':     value => $auth_host;
@@ -173,7 +186,19 @@ class glance::api(
       'DEFAULT/auth_url'         : value => $auth_url;
       'DEFAULT/admin_tenant_name': value => $keystone_tenant;
       'DEFAULT/admin_user'       : value => $keystone_user;
-      'DEFAULT/admin_password'   : value => $eystone_password;
+      'DEFAULT/admin_password'   : value => $keystone_password;
+    }
+  }
+
+  # Syslog
+  if $use_syslog {
+    glance_api_config {
+      'DEFAULT/use_syslog'          : value => true;
+      'DEFAULT/syslog_log_facility' : value => $log_facility;
+    }
+  } else {
+    glance_api_config {
+      'DEFAULT/use_syslog': value => false;
     }
   }
 
