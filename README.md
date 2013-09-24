@@ -50,7 +50,7 @@ To utilize the glance module's functionality you will need to declare multiple r
 
 ```puppet
 class { 'glance::api':
-  verbose           => 'True',
+  verbose           => true,
   keystone_tenant   => 'services',
   keystone_user     => 'glance',
   keystone_password => '12345',
@@ -58,7 +58,7 @@ class { 'glance::api':
 }
 
 class { 'glance::registry':
-  verbose           => 'True',
+  verbose           => true,
   keystone_tenant   => 'services',
   keystone_user     => 'glance',
   keystone_password => '12345',
@@ -90,8 +90,9 @@ class { 'glance::db::mysql':
 ```puppet
 class { 'glance::keystone::auth':
   password         => '12345'
+  email            => 'glance@example.com',
   public_address   => '172.17.0.3',
-  admin_address    => 'admin@example.com',
+  admin_address    => '172.17.0.3',
   internal_address => '172.17.1.3',
   region           => 'example-west-1',
 }
